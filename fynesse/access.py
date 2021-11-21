@@ -39,7 +39,7 @@ def create_connection(user, password, host, database, port=3306):
         print(f"Error connecting to the MariaDB Server: {e}")
     return conn
 
-def load_pp_to_sql(credentials):
+def load_pp_to_sql(credentials, database_details):
     parts = ["1", "2"]
     years = ["2018", "2017"]
 
