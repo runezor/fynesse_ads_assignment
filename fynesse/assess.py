@@ -13,8 +13,9 @@ import sklearn.feature_extraction"""
 
 def data():
     """Load the data from access and ensure missing values are correctly encoded as well as indices correct, column names informative, date and times correctly formatted. Return a structured data structure such as a data frame."""
-    df = access.data()
-    raise NotImplementedError
+    conn = access.data()
+
+    raise conn
 
 def query(data):
     """Request user input for some aspect of the data."""
