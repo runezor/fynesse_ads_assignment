@@ -81,11 +81,11 @@ def load_postcode_to_sql(conn):
     conn.commit()
 
 
+##Todo:
+#    SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+#    SET time_zone = "+00:00";
 def create_pp_data_table(conn):
     query = """"
-    SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-    SET time_zone = "+00:00";
-
     CREATE DATABASE IF NOT EXISTS `property_prices` DEFAULT CHARACTER SET utf8 COLLATE utf8_bin;
     USE `property_prices`;
 
