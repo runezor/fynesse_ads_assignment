@@ -9,15 +9,15 @@ config = {}
 
 if os.path.exists(default_file):
     with open(default_file) as file:
-        config.update(yaml.load(file))
+        config.update(yaml.load(file, Loader=yaml.FullLoader))
 
 if os.path.exists(local_file):
     with open(local_file) as file:
-        config.update(yaml.load(file))
+        config.update(yaml.load(file, Loader=yaml.FullLoader))
 
 if os.path.exists(user_file):
     with open(user_file) as file:
-        config.update(yaml.load(file))
+        config.update(yaml.load(file, Loader=yaml.FullLoader))
 
 if config=={}:
     raise ValueError(
