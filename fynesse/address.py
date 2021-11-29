@@ -60,7 +60,7 @@ def augment_df_with_pois(df, features, MAX_RADIUS):
         if i%10==0:
             print(str(i) + "/" + str(len(df.index)))
         i = i + 1
-        postcode, latitude, longitude = row["postcode"], row["latitude"], row["longitude"]
+        latitude, longitude = row["latitude"], row["longitude"]
         joined_row = []
         for feature in features:
             min_dist = MAX_RADIUS
