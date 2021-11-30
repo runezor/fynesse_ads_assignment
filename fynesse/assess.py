@@ -125,6 +125,8 @@ def bounding_box(lat, lon, width=2, height=2):
 def get_pp_data_for_location(conn, lat, lon, date_before, date_after, property_type, width=2, height=2):
     postcode_data_filtered = get_postcodes_in_bounding_box(lat, lon, width, height)
     postcodes = postcode_data_filtered["postcode"].values.tolist()
+    if len(postcodes)<1:
+        return None
     postcodes_formatted = ",".join(["'" + str(postcode) + "'" for postcode in postcodes])
     query = """select
     price as price,
@@ -170,8 +172,9 @@ def plot_predictions_vs_actual(predictions,actual,x_label,y_label,title):
     #TODO R VALUE
     fig = plt.figure(figsize=(10,5))
     ax = fig.add_subplot(111)
-    ax.set_xlim([0,1000000])
-    ax.set_ylim([0,1000000])
+    max_val = max(max(predictions["mean"]),max(actual))*1.1
+    ax.set_xlim([0,max_val])
+    ax.set_ylim([0,max_val])
     ax.plot([0, 1], [0, 1], transform=ax.transAxes)
     upper_error=(predictions["obs_ci_upper"]-predictions["mean"]).to_numpy()
     lower_error=(predictions["mean"]-predictions["obs_ci_lower"]).to_numpy()

@@ -23,6 +23,21 @@ from . import assess
 
 """Address a particular question that arises from the data"""
 
+class position:
+    def __init__(self, name, lat, lon):
+        self.name = name
+        self.latitude = lat
+        self.lon = lon
+
+    def position(self):
+        return self.lat, self.lon
+
+BIRMINGHAM = position("Birmingham",52.489471,-1.898575)
+LONDON = position("London", 51.509865, -0.118092)
+NEWCASTLE = position("Newcastle", 54.966667, -1.6)
+CAMBRIDGE = position("Cambridge", 52.205276, 0.119167)
+EDINBURGH = position("Edinburgh",55.953251,-3.188267)
+ST_IVES = position("St. Ives", 52.33203, -0.07612)
 
 class computed_feature:
     def __init__(self, name, rows):
@@ -133,7 +148,7 @@ def fit_on_data(data, y_column, feature_column_titles, regularize = False):
   return results_basis
 
 
-def get_nearest_grocery_type_for_postcode(conn, lat, lon, width=2, height=2, MAX_RADIUS=0.5):
+def get_nearest_grocery_type_for_postcode(lat, lon, width=2, height=2, MAX_RADIUS=1):
     data = []
     postcode_pos = assess.get_postcodes_in_bounding_box(lat, lon, width, height)
     pois = access.get_pois(lat, lon, tags={"shop": True}, width=2 + MAX_RADIUS, height=2 + MAX_RADIUS)
