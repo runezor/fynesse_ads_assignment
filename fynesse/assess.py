@@ -122,7 +122,7 @@ def bounding_box(lat, lon, width=2, height=2):
   return north,south,west,east
 
 
-def get_pp_data_for_location(conn, lat, lon, year_before, year_after, property_type, width=2, height=2):
+def get_pp_data_for_location(conn, lat, lon, date_before, date_after, property_type, width=2, height=2):
     postcode_data_filtered = get_postcodes_in_bounding_box(lat, lon, width, height)
     postcodes = postcode_data_filtered["postcode"].values.tolist()
     postcodes_formatted = ",".join(["'" + str(postcode) + "'" for postcode in postcodes])
@@ -147,8 +147,8 @@ def get_pp_data_for_location(conn, lat, lon, year_before, year_after, property_t
     column_names = list(map(lambda x: x[0], cursor.description))
     pp_data_for_location = pd.DataFrame(columns=column_names, data=cursor.fetchall())
     pp_data_for_location_filter_year = pp_data_for_location[
-        (pp_data_for_location["date_of_transfer"] > datetime.date(year_before, 1, 1)) & (
-                    pp_data_for_location["date_of_transfer"] < datetime.date(year_after, 1, 1)) & (
+        (pp_data_for_location["date_of_transfer"] > date_before) & (
+                    pp_data_for_location["date_of_transfer"] < date_after) & (
                     pp_data_for_location["property_type"] == property_type)]
 
     return pp_data_for_location_filter_year
