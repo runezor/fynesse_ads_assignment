@@ -6,8 +6,8 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import osmnx as ox
-import mlai
 import mlai.plot as plot
+import seaborn as sns
 import pandas as pd
 
 
@@ -148,7 +148,12 @@ def get_pp_data_for_location(conn, lat, lon, date_before, date_after, property_t
     cursor.execute(query)
     column_names = list(map(lambda x: x[0], cursor.description))
     pp_data_for_location = pd.DataFrame(columns=column_names, data=cursor.fetchall())
-    pp_data_for_location_filter_year = pp_data_for_location[
+    if property_type is None:
+        pp_data_for_location_filter_year = pp_data_for_location[
+        (pp_data_for_location["date_of_transfer"] > date_before) & (
+                    pp_data_for_location["date_of_transfer"] < date_after))]
+    else:
+        pp_data_for_location_filter_year = pp_data_for_location[
         (pp_data_for_location["date_of_transfer"] > date_before) & (
                     pp_data_for_location["date_of_transfer"] < date_after) & (
                     pp_data_for_location["property_type"] == property_type)]
@@ -173,8 +178,9 @@ def plot_predictions_vs_actual(predictions,actual,x_label,y_label,title):
     fig = plt.figure(figsize=(10,5))
     ax = fig.add_subplot(111)
     max_val = max(max(predictions["mean"]),max(actual))*1.1
-    ax.set_xlim([0,max_val])
-    ax.set_ylim([0,max_val])
+    min_val = min(min(predictions["mean"]),min(actual))*0.9
+    ax.set_xlim([min_val,max_val])
+    ax.set_ylim([min_val,max_val])
     ax.plot([0, 1], [0, 1], transform=ax.transAxes)
     upper_error=(predictions["obs_ci_upper"]-predictions["mean"]).to_numpy()
     lower_error=(predictions["mean"]-predictions["obs_ci_lower"]).to_numpy()
@@ -183,6 +189,56 @@ def plot_predictions_vs_actual(predictions,actual,x_label,y_label,title):
     ax.set_ylabel(y_label)
     ax.set_title(title)
     plt.show()
+
+
+def plot_pois(lat, lon, title, w=2, h=2):
+    # Plot a subsets of the POIs
+    fig, ax = plt.subplots(figsize=plot.big_figsize)
+
+    tags = ["amenity", "buildings", "historic", "leisure", "shop", "tourism"]
+    north, south, west, east = bounding_box(lat, lon, width=w, height=h)
+    nodes = ox.geometries_from_bbox(north, south, east, west, {i: True for i in tags})
+
+    ax.set_xlim([west, east])
+    ax.set_ylim([south, north])
+    ax.set_xlabel("longitude")
+    ax.set_ylabel("latitude")
+
+    types = ["amenity", "building", "historic", "leisure", "shop", "tourism"]
+    colors = ["red", "green", "yellow", "blue", "orange", "brown"]
+
+    # Plot tourist places
+    for tag, color in zip(types, colors):
+        if tag in nodes.columns:
+            nodes[nodes[tag].notna()].plot(ax=ax, color=color, alpha=0.5, markersize=10)
+    ax.set_title(title)
+    plt.tight_layout()
+
+
+def plot_features_in_grid(data, features, lat, lon, w, h, size):
+    north, south, west, east = bounding_box(lat, lon, width=w, height=h)
+    x_cut = pd.cut(data.longitude, np.linspace(west, east, size), right=False)
+    y_cut = pd.cut(data.latitude, np.linspace(south, north, size), right=False)
+    data_grouped = data.groupby([x_cut, y_cut]).mean().reset_index()
+
+    if len(features) > 1:
+        rows = int((len(features) + 3) / 4)
+        f, axi = plt.subplots(ncols=4, nrows=rows)
+        f.tight_layout()
+        f.set_figwidth(17)
+        f.set_figheight(rows * 4)
+        for feature, ax in zip(features, axi.flatten()[0:len(features)]):
+            ax.set_title(feature)
+            data_mod = pd.DataFrame(np.array(data_grouped[feature].to_list()).reshape(size - 1, size - 1),
+                                    index=data_grouped["longitude"].unique(), columns=data_grouped["latitude"].unique())
+            sns.heatmap(data_mod.T, ax=ax)
+    else:
+        f, ax = plt.subplots()
+        ax.set_title(features[0])
+        data_mod = pd.DataFrame(np.array(data_grouped[features[0]].to_list()).reshape(size - 1, size - 1),
+                                index=data_grouped["longitude"].unique(), columns=data_grouped["latitude"].unique())
+        sns.heatmap(data_mod.T, ax=ax)
+
 
 def get_postcodes_in_bounding_box(lat,lon, width, height):
   if access.get_postcode_positions() is None:

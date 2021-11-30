@@ -1,3 +1,19 @@
+# Data Assignment
+
+This is my code for the Cambridge Part-II Advanced Data Science Unit. It provides a list of functions in all levels of Fynesse which allows us to combine features from the UK Price Paid data https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads, the UK postcode data https://www.getthedata.com/open-postcode-geo and open street maps.
+
+## License
+
+### Price Paid Data
+This data is licensed under the Open Government License. We have to provide a link to the license at http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/, as well as acknowledge the source. Other than that, it imposes no further restrictions, and we are free to use it for commercial use.
+
+### Postcode data
+This data is similarly licensed under the Open Government License. It was accessed via https://www.getthedata.com/open-postcode-geo.
+
+### Open Street Maps
+This data is licensed under ODbL https://www.openstreetmap.org/copyright/en. We can freely copy, distribute, transmit and adapt the data (important for our case), as long as we credit OpenStreetMap and its contributors (let this be credit!). If we use their data we must distribute under the same license, meaning we can't use it for commercial uses.
+
+
 # Fynesse Template
 
 This repo provides a template repo for doing data analysis according to the Fynesse framework.

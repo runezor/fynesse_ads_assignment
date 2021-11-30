@@ -66,13 +66,13 @@ STANDARD_FEATURES = [restaurant_feature,kindergarten_feature,groceries_feature,s
 
 ## In: DF must have latitude + longitude
 ## Out: Same df, but with new feature columns
-def augment_df_with_pois(df, features, MAX_RADIUS):
+def augment_df_with_pois(df, features, MAX_RADIUS, debug=False):
     feature_types = ["min", "avg_dist", "within_r"]
 
     data = []
     i = 0
     for index, row in df.iterrows():
-        if i%10==0:
+        if debug and i%10==0:
             print(str(i) + "/" + str(len(df.index)))
         i = i + 1
         latitude, longitude = row["latitude"], row["longitude"]
@@ -111,6 +111,36 @@ def augment_df_with_pois(df, features, MAX_RADIUS):
 
     return feature_df, columns
 
+# Returns a dataframe with an added column "avg_nearby", which averages the price of the 10 nearest houses
+def augment_with_avg_nearby_price(pp_with_locations, n=10):
+    out = pp_with_locations.copy()
+
+    def get_avg_price_of_nearby(lat, lon):
+        prices = []
+        for index, row in pp_with_locations.iterrows():
+            diff_x = row["longitude"] - lon
+            diff_y = row["latitude"] - lat
+            dist = assess.lat_lon_to_dist(float(diff_y), float(diff_x), float(lat))
+
+            prices.append({"price": row["price"], "dist": dist})
+            if len(prices) > n ** 2:
+                for price in prices:
+                    prices = sorted(prices, key=lambda d: d['dist'])
+                    prices = prices[0:(n - 1)]
+
+        prices = sorted(prices, key=lambda d: d['dist'])
+        prices = prices[0:(n - 1)]
+
+        sum = 0
+        for price in prices:
+            sum += price["price"]
+
+        avg = sum / len(prices)
+
+        return avg
+
+    out["avg_nearby"] = pp_with_locations.apply(lambda row: get_avg_price_of_nearby(row["latitude"],row["longitude"]), axis = 1)
+    return out
 
 def predict_on_data(basis, data, feature_column_titles, regularized=False):
     feature_columns = [np.array(data[x], dtype=float).reshape(-1, 1) for x in feature_column_titles] + [
