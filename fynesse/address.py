@@ -39,30 +39,7 @@ CAMBRIDGE = position("Cambridge", 52.205276, 0.119167)
 EDINBURGH = position("Edinburgh",55.953251,-3.188267)
 ST_IVES = position("St. Ives", 52.33203, -0.07612)
 
-class computed_feature:
-    def __init__(self, name, rows):
-        self.name = name
-        self.rows = rows
 
-class feature:
-    def __init__(self, name, is_valid, compute):
-        self.name = name
-        self.is_valid_for = is_valid
-        self.compute = compute
-
-    def compute_feature(self, pois):
-        return computed_feature(self.name, self.compute(pois))
-
-
-restaurant_feature = feature("restaurant", lambda pois: "amenity" in pois.columns.tolist(), lambda pois: pois[(pois["amenity"] == "restaurant") | (pois["amenity"] == "fast_food")])
-kindergarten_feature = feature("kindergarten", lambda pois: "amenity" in pois.columns.tolist(), lambda pois: pois[pois["amenity"] == "kindergarten"])
-groceries_feature = feature("groceries", lambda pois: "shop" in pois.columns.tolist(), lambda pois: pois[(pois["shop"] == "convenience") | (pois["shop"] == "supermarket")])
-shop_feature = feature("shop", lambda pois: "shop" in pois.columns.tolist(), lambda pois: pois[pois["shop"].notna()])
-public_transport_feature = feature("public_transport", lambda pois: "public_transport" in pois.columns.tolist(), lambda pois: pois[pois["public_transport"].notna()])
-tourism_feature = feature("tourism", lambda pois: "tourism" in pois.columns.tolist(), lambda pois: pois[pois["tourism"].notna()])
-hazard_feature = feature("hazard", lambda pois: "hazard" in pois.columns.tolist(), lambda pois: pois[pois["hazard"].notna()])
-
-STANDARD_FEATURES = [restaurant_feature,kindergarten_feature,groceries_feature,shop_feature,public_transport_feature,tourism_feature,hazard_feature]
 
 ## In: DF must have latitude + longitude
 ## Out: Same df, but with new feature columns

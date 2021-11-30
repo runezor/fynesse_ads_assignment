@@ -19,6 +19,32 @@ import sklearn.decomposition as decomposition
 import sklearn.feature_extraction"""
 
 """Place commands in this file to assess the data you have downloaded. How are missing values encoded, how are outliers encoded? What do columns represent, makes rure they are correctly labeled. How is the data indexed. Crete visualisation routines to assess the data (e.g. in bokeh). Ensure that date formats are correct and correctly timezoned."""
+
+class computed_feature:
+    def __init__(self, name, rows):
+        self.name = name
+        self.rows = rows
+
+class feature:
+    def __init__(self, name, is_valid, compute):
+        self.name = name
+        self.is_valid_for = is_valid
+        self.compute = compute
+
+    def compute_feature(self, pois):
+        return computed_feature(self.name, self.compute(pois))
+
+restaurant_feature = feature("restaurant", lambda pois: "amenity" in pois.columns.tolist(), lambda pois: pois[(pois["amenity"] == "restaurant") | (pois["amenity"] == "fast_food")])
+kindergarten_feature = feature("kindergarten", lambda pois: "amenity" in pois.columns.tolist(), lambda pois: pois[pois["amenity"] == "kindergarten"])
+groceries_feature = feature("groceries", lambda pois: "shop" in pois.columns.tolist(), lambda pois: pois[(pois["shop"] == "convenience") | (pois["shop"] == "supermarket")])
+shop_feature = feature("shop", lambda pois: "shop" in pois.columns.tolist(), lambda pois: pois[pois["shop"].notna()])
+public_transport_feature = feature("public_transport", lambda pois: "public_transport" in pois.columns.tolist(), lambda pois: pois[pois["public_transport"].notna()])
+tourism_feature = feature("tourism", lambda pois: "tourism" in pois.columns.tolist(), lambda pois: pois[pois["tourism"].notna()])
+hazard_feature = feature("hazard", lambda pois: "hazard" in pois.columns.tolist(), lambda pois: pois[pois["hazard"].notna()])
+
+STANDARD_FEATURES = [restaurant_feature,kindergarten_feature,groceries_feature,shop_feature,public_transport_feature,tourism_feature,hazard_feature]
+
+
 def data(credentials, database_details):
     """Load the data from access and ensure missing values are correctly encoded as well as indices correct, column names informative, date and times correctly formatted. Return a structured data structure such as a data frame."""
     conn = access.data(credentials, database_details)
@@ -159,6 +185,33 @@ def get_pp_data_for_location(conn, lat, lon, date_before, date_after, property_t
                     pp_data_for_location["property_type"] == property_type)]
 
     return pp_data_for_location_filter_year
+
+def plot_england_price_map(conn):
+    query = """select
+      price,
+      postcode
+    FROM
+      pp_data
+    ORDER BY RAND ( )
+    LIMIT 1000000
+    """
+    postcode_positions = access.get_postcode_positions()
+    cursor = conn.cursor()
+    cursor.execute(query)
+    column_names = list(map(lambda x: x[0], cursor.description))
+    prices = pd.DataFrame(columns=column_names, data=cursor.fetchall())
+    prices_with_location = postcode_positions.merge(prices)
+
+    x_cut = pd.cut(prices_with_location.longitude, np.linspace(-7, 2.5, 48), right=False)
+    y_cut = pd.cut(prices_with_location.latitude, np.linspace(49, 57, 70), right=False)
+    prices = prices_with_location.groupby([x_cut, y_cut]).mean().reset_index()
+
+    indices = prices["longitude"].unique()
+    cols = prices["latitude"].unique()
+    df = pd.DataFrame(np.array(prices["price"].tolist()).reshape(48 - 1, 70 - 1), index=indices, columns=cols)
+
+    ax = sns.heatmap(df.T)
+    ax.invert_yaxis()
 
 def plot_quotients(fit, names):
     fig, ax = plt.subplots(figsize=(16, 4))
