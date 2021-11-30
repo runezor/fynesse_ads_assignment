@@ -151,7 +151,7 @@ def get_pp_data_for_location(conn, lat, lon, date_before, date_after, property_t
     if property_type is None:
         pp_data_for_location_filter_year = pp_data_for_location[
         (pp_data_for_location["date_of_transfer"] > date_before) & (
-                    pp_data_for_location["date_of_transfer"] < date_after))]
+                    pp_data_for_location["date_of_transfer"] < date_after)]
     else:
         pp_data_for_location_filter_year = pp_data_for_location[
         (pp_data_for_location["date_of_transfer"] > date_before) & (
