@@ -27,10 +27,10 @@ class position:
     def __init__(self, name, lat, lon):
         self.name = name
         self.latitude = lat
-        self.lon = lon
+        self.longitude = lon
 
     def position(self):
-        return self.lat, self.lon
+        return self.latitude, self.longitude
 
 BIRMINGHAM = position("Birmingham",52.489471,-1.898575)
 LONDON = position("London", 51.509865, -0.118092)
