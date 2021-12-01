@@ -24,7 +24,7 @@ class computed_feature:
     def __init__(self, name, rows):
         self.name = name
         self.rows = rows
-
+f
 class feature:
     def __init__(self, name, is_valid, compute):
         self.name = name
@@ -48,14 +48,6 @@ STANDARD_FEATURES = [restaurant_feature,kindergarten_feature,groceries_feature,s
 def data(credentials, database_details):
     """Load the data from access and ensure missing values are correctly encoded as well as indices correct, column names informative, date and times correctly formatted. Return a structured data structure such as a data frame."""
     conn = access.data(credentials, database_details)
-
-
-    query = """select postcode from pp_data where postcode<>'""' limit 100"""
-
-    cursor = conn.cursor()
-    cursor.execute(query)
-    result = cursor.fetchall()
-
     return conn
 
 def query(data):
@@ -186,6 +178,7 @@ def get_pp_data_for_location(conn, lat, lon, date_before, date_after, property_t
 
     return pp_data_for_location_filter_year
 
+#TODO PRICE UNIT
 def plot_england_price_map(conn):
     query = """select
       price,
@@ -291,6 +284,65 @@ def plot_features_in_grid(data, features, lat, lon, w, h, size):
         data_mod = pd.DataFrame(np.array(data_grouped[features[0]].to_list()).reshape(size - 1, size - 1),
                                 index=data_grouped["longitude"].unique(), columns=data_grouped["latitude"].unique())
         sns.heatmap(data_mod.T, ax=ax)
+
+def plot_prices_over_year(pp_data, ax):
+  prices_over_year = pp_data.groupby("year(date_of_transfer)").mean()
+  ax.set_xlabel("year")
+  ax.set_ylabel("price (£)")
+  ax.set_title("Average house price")
+  ax.plot(prices_over_year.index,prices_over_year["price"])
+
+def plot_pp_data_proportions(pp_data, ax):
+  property_proportions = (pp_data.groupby("property_type").count()/1000000)*100
+
+  ax.pie(property_proportions["price"], labels=property_proportions.index, autopct='%1.1f%%',
+          shadow=True, startangle=90)
+  ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+  ax.set_title("Proportion of different property types in dataset")
+
+def plot_prices_by_year_new(pp_data, ax):
+  prices_by_year_build = pp_data.groupby(["new_build_flag","year(date_of_transfer)"]).mean()
+  ax.plot(prices_by_year_build.xs("Y").index,prices_by_year_build.xs("Y")["price"])
+  ax.plot(prices_by_year_build.xs("N").index,prices_by_year_build.xs("N")["price"])
+  ax.set_xlabel("year")
+  ax.set_ylabel("price (£)")
+  ax.set_title("Average price of New/Old houses")
+  ax.legend(["New", "Old"])
+
+def plot_prices_by_year_type(pp_data, ax):
+  prices_by_type = pp_data.groupby(["property_type","year(date_of_transfer)"]).mean()
+
+  types = ["Detached", "Flat", "Other", "Terraced", "Semidetached"]
+  for prop_type in types:
+    initial = prop_type[0:1]
+    plt.plot(prices_by_type.xs(initial).index,prices_by_type.xs(initial)["price"])
+  ax.legend(types)
+  ax.set_xlabel("year")
+  ax.set_ylabel("price (£)")
+  ax.set_title("Average price of different house types")
+
+def print_pp_data_outliers(conn):
+  ## Find number of outliers
+  query = """select
+    *
+  FROM
+    pp_data
+  WHERE
+    price<1000 or
+    year(date_of_transfer)<1995 or 
+    year(date_of_transfer)>2021
+  """
+
+  cursor = conn.cursor()
+  cursor.execute(query)
+  column_names = list(map(lambda x: x[0], cursor.description))
+  df = pd.DataFrame(columns=column_names, data=cursor.fetchall())
+  print("Prices less than 1000")
+  index = df["price"]<1000
+  print(df[index]["price"])
+  print("Outside years")
+  index = (df["date_of_transfer"]<datetime.date(1995,1,1)) | (df["date_of_transfer"]>datetime.date(2021,12,1))
+  print(df[index]["date_of_transfer"])
 
 
 def get_postcodes_in_bounding_box(lat,lon, width, height):

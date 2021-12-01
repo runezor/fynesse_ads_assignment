@@ -148,7 +148,7 @@ def fit_on_data(data, y_column, feature_column_titles, regularize = False):
   m_linear_basis = sm.OLS(y,design)
 
   if regularize:
-    results_basis = m_linear_basis.fit_regularized(L1_wt=0.1)
+    results_basis = m_linear_basis.fit_regularized(L1_wt=0, alpha=0.01)
   else:
     results_basis = m_linear_basis.fit()
 
