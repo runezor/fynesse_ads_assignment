@@ -24,7 +24,7 @@ class computed_feature:
     def __init__(self, name, rows):
         self.name = name
         self.rows = rows
-f
+
 class feature:
     def __init__(self, name, is_valid, compute):
         self.name = name
