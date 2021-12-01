@@ -137,7 +137,9 @@ def predict_on_data(basis, data, feature_column_titles, regularized=False):
 # :param data: The data to divide
 # :param ratio: The ratio of training_data/data, the rest goes in test_data
 # :return A tuple with training and test data
-def generate_training_and_test_indices(data, ratio=0.8):
+def generate_training_and_test_indices(data, ratio=0.8, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
     size = len(data.index)
     training_data = np.random.permutation(
         np.append(np.ones(int(size * ratio), dtype=bool), (np.zeros(size - int(size * 0.8), dtype=bool))))
