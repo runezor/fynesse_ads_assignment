@@ -1,18 +1,5 @@
 # This file contains code for suporting addressing questions in the data
 
-"""# Here are some of the imports we might expect 
-import sklearn.model_selection  as ms
-import sklearn.linear_model as lm
-import sklearn.svm as svm
-import sklearn.naive_bayes as naive_bayes
-import sklearn.tree as tree
-
-import GPy
-import torch
-import tensorflow as tf
-
-# Or if it's a statistical analysis
-import scipy.stats"""
 import decimal
 import pandas as pd
 import numpy as np
@@ -21,8 +8,8 @@ import statsmodels.api as sm
 from . import access
 from . import assess
 
-"""Address a particular question that arises from the data"""
 
+# Write a bunch of latitude/longitude positions for ease of use
 class position:
     def __init__(self, name, lat, lon):
         self.name = name
@@ -32,24 +19,27 @@ class position:
     def position(self):
         return self.latitude, self.longitude
 
-BIRMINGHAM = position("Birmingham",52.489471,-1.898575)
+BIRMINGHAM = position("Birmingham", 52.489471, -1.898575)
 LONDON = position("London", 51.509865, -0.118092)
 NEWCASTLE = position("Newcastle", 54.966667, -1.6)
 CAMBRIDGE = position("Cambridge", 52.205276, 0.119167)
-EDINBURGH = position("Edinburgh",55.953251,-3.188267)
+EDINBURGH = position("Edinburgh", 55.953251, -3.188267)
 ST_IVES = position("St. Ives", 52.33203, -0.07612)
 
 
-
-## In: DF must have latitude + longitude
-## Out: Same df, but with new feature columns
+# Returns a sanitised set of POIS based on a feature set
+# :param df: A dataframe containing at least columns 'latitude' and 'longitude'
+# :param features: A list of pois_computed_feature
+# :param MAX_RADIUS: The maximal radius for average and minimum distance calculations
+# :param debug: Set true for progress output
+# :return A dataframe matching the index of df, a list of column names for the features
 def augment_df_with_pois(df, features, MAX_RADIUS, debug=False):
     feature_types = ["min", "avg_dist", "within_r"]
 
     data = []
     i = 0
     for index, row in df.iterrows():
-        if debug and i%10==0:
+        if debug and i % 10 == 0:
             print(str(i) + "/" + str(len(df.index)))
         i = i + 1
         latitude, longitude = row["latitude"], row["longitude"]
@@ -88,7 +78,11 @@ def augment_df_with_pois(df, features, MAX_RADIUS, debug=False):
 
     return feature_df, columns
 
+
 # Returns a dataframe with an added column "avg_nearby", which averages the price of the 10 nearest houses
+# :param pp_with_locations: A dataframe containing pricepoint data along with 'latitude' and 'longitude'
+# :param n: How many houses to average over
+# :return A dataframe copy of pp_with_locations, but with an additional column "avg_nearby"
 def augment_with_avg_nearby_price(pp_with_locations, n=10):
     out = pp_with_locations.copy()
 
@@ -116,9 +110,17 @@ def augment_with_avg_nearby_price(pp_with_locations, n=10):
 
         return avg
 
-    out["avg_nearby"] = pp_with_locations.apply(lambda row: get_avg_price_of_nearby(row["latitude"],row["longitude"]), axis = 1)
+    out["avg_nearby"] = pp_with_locations.apply(lambda row: get_avg_price_of_nearby(row["latitude"], row["longitude"]),
+                                                axis=1)
     return out
 
+
+# Predicts on data assuming (statsmodels.ols)
+# :param basis: The fit
+# :param data: The data to fit on, should be a pandas dataframe
+# :param feature_column_titles: The names of the feature columns
+# :param regularized: Whether or not the fit is regularized (to handle statsmodels weirdness)
+# :return A list of predicitons
 def predict_on_data(basis, data, feature_column_titles, regularized=False):
     feature_columns = [np.array(data[x], dtype=float).reshape(-1, 1) for x in feature_column_titles] + [
         np.ones(len(data)).reshape(-1, 1)]
@@ -130,6 +132,11 @@ def predict_on_data(basis, data, feature_column_titles, regularized=False):
         y_predictions = basis.get_prediction(design).summary_frame(alpha=0.05)
     return y_predictions
 
+
+# Divides data into two sets, handy for generatingtraining and test data
+# :param data: The data to divide
+# :param ratio: The ratio of training_data/data, the rest goes in test_data
+# :return A tuple with training and test data
 def generate_training_and_test_indices(data, ratio=0.8):
     size = len(data.index)
     training_data = np.random.permutation(
@@ -138,23 +145,38 @@ def generate_training_and_test_indices(data, ratio=0.8):
 
     return data[training_data], data[test_data]
 
-def fit_on_data(data, y_column, feature_column_titles, regularize = False):
-  y = data[y_column]
 
-  feature_columns = [np.array(data[x], dtype=float).reshape(-1,1) for x in feature_column_titles]+[np.ones(len(data)).reshape(-1,1)]
+# Fits on data using statsmodels.ols
+# :param data: The data to fit on, should be a pandas dataframe
+# :param y_column: The name of the y column, the one we fit to
+# :param feature_column_titles: A list containing the names of the columns we'd like to use as features
+# :param regularize: Whether or not we should use L2
+# :return A list of predicitons
+def fit_on_data(data, y_column, feature_column_titles, regularize=False):
+    y = data[y_column]
 
-  design = np.concatenate(feature_columns,axis=1)
+    feature_columns = [np.array(data[x], dtype=float).reshape(-1, 1) for x in feature_column_titles] + [
+        np.ones(len(data)).reshape(-1, 1)]
 
-  m_linear_basis = sm.OLS(y,design)
+    design = np.concatenate(feature_columns, axis=1)
 
-  if regularize:
-    results_basis = m_linear_basis.fit_regularized(L1_wt=0, alpha=0.01)
-  else:
-    results_basis = m_linear_basis.fit()
+    m_linear_basis = sm.OLS(y, design)
 
-  return results_basis
+    if regularize:
+        results_basis = m_linear_basis.fit_regularized(L1_wt=0, alpha=0.01)
+    else:
+        results_basis = m_linear_basis.fit()
+
+    return results_basis
 
 
+# Computes the nearest grocery stores for each postcode in a bounding box
+# :param lat: The latitude of the box center
+# :param lon: The longitude of the box center
+# :param width: The width of the box in km
+# :param height: The height of the box in km
+# :param MAX_RADIUS: The maximal radius we will go looking for a grocery store
+# :return A dataframe with postcodes, along with a one_hot encoding of the nearest grocery store
 def get_nearest_grocery_type_for_postcode(lat, lon, width=2, height=2, MAX_RADIUS=1):
     data = []
     postcode_pos = assess.get_postcodes_in_bounding_box(lat, lon, width, height)
@@ -225,3 +247,19 @@ def get_nearest_grocery_type_for_postcode(lat, lon, width=2, height=2, MAX_RADIU
     postcodes_with_nearest_supermarket = pd.DataFrame(data, columns=["postcode"] + shop_column_names)
 
     return postcodes_with_nearest_supermarket, shop_column_names
+
+
+# Computes the correlations of a dataframe as a flat list
+# :param df: The dataframe
+# :return A list of correlations with of the format {"name": 'variable1/variable', "correlation": cor(variable1,variable2)}
+def get_correlations_sorted(df):
+    df_c = df.corr()
+    correlations = []
+    for index, row in df_c.iterrows():
+        for column in df_c.columns:
+            if index is not column:
+                correlations += [{"name": index + "/" + column, "correlation": abs(row[column])}]
+
+    sorted_correlations = sorted(correlations, key=lambda d: d['correlation'])
+
+    return df_c

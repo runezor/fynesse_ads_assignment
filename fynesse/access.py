@@ -6,21 +6,18 @@ import shutil
 import osmnx as ox
 import math
 
-"""These are the types of import we might expect in this file
-import httplib2
-import oauth2
-import mongodb
-import sqlite"""
-
 # This file accesses the data
 
-"""Place commands in this file to access the data electronically. Don't remove any missing values, or deal with outliers. Make sure you have legalities correct, both intellectual property and personal data privacy rights. Beyond the legal side also think about the ethical issues around this data. """
-
-
+# Cache for postcodes
 global POSTCODE_POSITIONS
-
 POSTCODE_POSITIONS = None
 
+
+#Builds the DB
+#Takes a set of credentials + database details
+# :param credentials: dict containing a username and password
+# :param database_details: dict containing a url for the database
+# :warning: Will clear tables in DB if overlapping
 def build(credentials, database_details):
     conn = create_connection(user=credentials["username"],
                              password=credentials["password"],
@@ -33,6 +30,10 @@ def build(credentials, database_details):
     load_pp_to_sql(conn)
     load_postcode_to_sql(conn)
 
+#Establishes a connection to the DB, and fills out the postcode cachce
+# :param credentials: dict containing a username and password
+# :param database_details: dict containing a url for the database
+# :return: Connection to db
 def data(credentials, database_details):
     """Read the data from the web or local file, returning structured format such as a data frame"""
 
@@ -47,6 +48,9 @@ def data(credentials, database_details):
 
     return conn
 
+# Fetches postcode locations from the DB if not cached
+# :param conn: Connection to DB, only necessary if data is not cached
+# :return: Postcodes dataframe
 def get_postcode_positions(conn=None):
     global POSTCODE_POSITIONS
 
@@ -65,16 +69,14 @@ def get_postcode_positions(conn=None):
     POSTCODE_POSITIONS = postcode_data
     return postcode_data
 
+# Creates a pymysql connection to the DB
+# :param user: The username
+# :param password: The user password
+# :param host: The host url
+# :param database: The database url
+# :param port: The port number
+# :return: Connection to the DB
 def create_connection(user, password, host, database, port=3306):
-    """ Create a database connection to the MariaDB database
-        specified by the host url and database name.
-    :param user: username
-    :param password: password
-    :param host: host url
-    :param database: database
-    :param port: port number
-    :return: Connection object or None
-    """
     conn = None
     try:
         conn = pymysql.connect(user=user,
@@ -88,6 +90,8 @@ def create_connection(user, password, host, database, port=3306):
         print(f"Error connecting to the MariaDB Server: {e}")
     return conn
 
+# Loads price point data into the DB
+# :param conn: the connection to the DB
 def load_pp_to_sql(conn):
     parts = ["1", "2"]
     years = [str(i) for i in range(1995, 2022)]
@@ -110,10 +114,11 @@ def load_pp_to_sql(conn):
             conn.commit()
             print("Uploaded " + year + " part " + part)
 
+# Loads postcode data into the database
+# :param conn: the connection to the DB
 def load_postcode_to_sql(conn):
     urllib.request.urlretrieve('https://www.getthedata.com/downloads/open_postcode_geo.csv.zip', 'temp.csv.zip')
 
-    # TOdo make blocking
     shutil.unpack_archive("temp.csv.zip", 'zip/')
 
     query = """LOAD DATA LOCAL INFILE 'zip/open_postcode_geo.csv' INTO TABLE `postcode_data`
@@ -123,16 +128,11 @@ def load_postcode_to_sql(conn):
     conn.cursor().execute(query)
     conn.commit()
 
-##Todo:
-#    SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-#    SET time_zone = "+00:00";
-def create_pp_data_table(conn):
-    query = """"CREATE DATABASE IF NOT EXISTS `property_prices` DEFAULT CHARACTER SET utf8 COLLATE utf8_bin;
---
--- Indexes for table `pp_data`
---
-"""
 
+# Prepares the pricepoint table in the DB
+# :warning Will drop the table if it already exists
+# :param conn: the connection to the DB
+def create_pp_data_table(conn):
     drop_table_query = "DROP TABLE IF EXISTS pp_data"
     create_table_query = """CREATE TABLE pp_data (
           transaction_unique_identifier tinytext COLLATE utf8_bin NOT NULL,
@@ -155,7 +155,6 @@ def create_pp_data_table(conn):
         ) DEFAULT CHARSET = utf8 COLLATE = utf8_bin AUTO_INCREMENT = 1;
         """
 
-    ## Todo: Still need db_id
     create_index_pc_query = """CREATE INDEX pp_postcode USING HASH ON pp_data (postcode)"""
     create_index_date_query = """CREATE INDEX pp_date USING HASH ON pp_data (date_of_transfer)"""
     create_index_type_query = """CREATE INDEX pp_type USING HASH ON pp_data (property_type)"""
@@ -168,6 +167,9 @@ def create_pp_data_table(conn):
     conn.cursor().execute(create_index_type_query)
     conn.commit()
 
+# Prepares the postcode table
+# :warning Will drop the table if it already exists
+# :param conn: the connection to the DB
 def create_postcode_table(conn):
     drop_table_query = "DROP TABLE IF EXISTS postcode_data"
     create_table_query = """CREATE TABLE postcode_data (
@@ -209,29 +211,13 @@ def create_postcode_table(conn):
     conn.cursor().execute(create_index_lat_query)
     conn.commit()
 
-def bounding_box(lat, lon, width=2, height=2):
-  height_lat = height / 110.574
-  width_lon = width / (math.cos(lat*math.pi/180)*111.320)
-
-  north = lat + height_lat / 2
-  south = lat - height_lat / 2
-  west = lon - width_lon / 2
-  east = lon + width_lon / 2
-  return north,south,west,east
-
-def get_points_of_interest(lat, lon, width=2, height=2):
-  north, south, west, east = bounding_box(lat,lon,width=width,height=height)
-
-  # Retrieve POIs
-  tags = {"amenity": True,
-          "buildings": True,
-          "historic": True,
-          "leisure": True,
-          "shop": True,
-          "tourism": True}
-
-  return ox.geometries_from_bbox(north, south, east, west, tags)
-
+# Gets points of interests from OSMNX
+# :param lat: The latitude of the box center
+# :param lon: The longitude of the box center
+# :param width: The width of the box in km
+# :param height: The height of the box in km
+# :param tags: Keys for OSMNX
+# :warning The data here is unfiltered, so care is needed when handling the result, ideally use assess get_pois_filtered
 def get_pois(lat, lon, tags={"amenity": True}, width=2, height=2):
   north, south, west, east = bounding_box(lat,lon,width=width,height=height)
 
