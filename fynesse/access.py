@@ -4,6 +4,8 @@ import urllib.request
 import pandas as pd
 import shutil
 import osmnx as ox
+from . import assess
+
 import math
 
 # This file accesses the data
@@ -219,6 +221,6 @@ def create_postcode_table(conn):
 # :param tags: Keys for OSMNX
 # :warning The data here is unfiltered, so care is needed when handling the result, ideally use assess get_pois_filtered
 def get_pois(lat, lon, tags={"amenity": True}, width=2, height=2):
-  north, south, west, east = bounding_box(lat,lon,width=width,height=height)
+  north, south, west, east = assess.bounding_box(lat,lon,width=width,height=height)
 
   return ox.geometries_from_bbox(north, south, east, west, tags)

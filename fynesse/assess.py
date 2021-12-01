@@ -31,8 +31,9 @@ class pois_computed_feature:
 # is_valid_for takes as input a set of POIS, and returns a boolean saying whether or not the feature is available
 # compute takes a set of POIS, and returns a new (likely a subset) of pois that are sanitized
 class pois_feature:
-    def __init__(self, name, is_valid, compute):
+    def __init__(self, name, tags, is_valid, compute):
         self.name = name
+        self.tags = tags
         self.is_valid_for = is_valid
         self.compute = compute
 
@@ -40,19 +41,19 @@ class pois_feature:
         return pois_computed_feature(self.name, self.compute(pois))
 
 # Creates a bunch of features used in the address stage
-restaurant_feature = pois_feature("restaurant", lambda pois: "amenity" in pois.columns.tolist(), lambda pois: pois[
+restaurant_feature = pois_feature("restaurant", ["amenity"], lambda pois: "amenity" in pois.columns.tolist(), lambda pois: pois[
     (pois["amenity"] == "restaurant") | (pois["amenity"] == "fast_food")])
-kindergarten_feature = pois_feature("kindergarten", lambda pois: "amenity" in pois.columns.tolist(),
+kindergarten_feature = pois_feature("kindergarten", ["amenity"], lambda pois: "amenity" in pois.columns.tolist(),
                                     lambda pois: pois[pois["amenity"] == "kindergarten"])
-groceries_feature = pois_feature("groceries", lambda pois: "shop" in pois.columns.tolist(),
+groceries_feature = pois_feature("groceries", ["shop"], lambda pois: "shop" in pois.columns.tolist(),
                                  lambda pois: pois[(pois["shop"] == "convenience") | (pois["shop"] == "supermarket")])
-shop_feature = pois_feature("shop", lambda pois: "shop" in pois.columns.tolist(),
+shop_feature = pois_feature("shop", ["shop"], lambda pois: "shop" in pois.columns.tolist(),
                             lambda pois: pois[pois["shop"].notna()])
-public_transport_feature = pois_feature("public_transport", lambda pois: "public_transport" in pois.columns.tolist(),
+public_transport_feature = pois_feature("public_transport", ["public_transport"], lambda pois: "public_transport" in pois.columns.tolist(),
                                         lambda pois: pois[pois["public_transport"].notna()])
-tourism_feature = pois_feature("tourism", lambda pois: "tourism" in pois.columns.tolist(),
+tourism_feature = pois_feature("tourism", ["tourism"], lambda pois: "tourism" in pois.columns.tolist(),
                                lambda pois: pois[pois["tourism"].notna()])
-hazard_feature = pois_feature("hazard", lambda pois: "hazard" in pois.columns.tolist(),
+hazard_feature = pois_feature("hazard", ["hazard"], lambda pois: "hazard" in pois.columns.tolist(),
                               lambda pois: pois[pois["hazard"].notna()])
 
 STANDARD_FEATURES = [restaurant_feature, kindergarten_feature, groceries_feature, shop_feature,
@@ -390,7 +391,9 @@ def lat_lon_to_dist(lat_diff, lon_diff, lat):
 # :param height: The height of the box in km
 # :return Distance in km
 def get_pois_filtered(features, lat, lon, width, height):
-    pois = access.get_pois(lat, lon, width=width, height=height)
+
+    tags_list = np.array([f.tags for f in features]).flatten()
+    pois = access.get_pois(lat, lon, tags={tag: True for tag in tags_list}, width=width, height=height)
 
     # We only select features that are actually available
     # Refactor
