@@ -386,8 +386,6 @@ def is_confidence_in_input_low(priors, data):
         p_sub = 0
     p *= p_sub
 
-  print(p)
-
   return p<0.05
 
 # Plots the fit of on a dataset using PCA-acquired features of different dimensions
