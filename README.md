@@ -1,6 +1,40 @@
-# Data Assignment
+# Part-II Advanced Data Science Assignment
 
 This is my code for the Cambridge Part-II Advanced Data Science Unit. It provides a list of functions in all levels of Fynesse which allows us to combine features from the UK Price Paid data https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads, the UK postcode data https://www.getthedata.com/open-postcode-geo and open street maps.
+
+## Structure
+This repository follows the fynesse structure (https://github.com/lawrennd/fynesse_template), meaning that it is divided into three sections: Access, assess, address.
+
+
+### Access
+This part is concerned with acquiring data. Make sure that you read the license part of this readme before making use of it.
+
+It has functions that allow you to set up DB tables pp_data and postcode_data, which it will populate with data from the nationalarchives and with public UK postcode data. It also allows for rudimentary querying of open street maps.
+
+### Assess
+There's function for querying postcodes as well as pp data for a specific bounding box.
+
+There's also a lot of queries to find data outliers as well as plotting the data on a general level.
+
+You can use the pois_feature class along with get_pois_filtered(features, lat, lon, width, height) function to return a sanitized set of features from open street maps. Be aware if a feature is not available, it won't be part of the returned set of features.
+
+
+### Address
+In this phase we attempt to *address* questions, so here you'll find code that helps to answer specific questions.
+
+Augment_with_pois takes a dataframe along with a list of computed pois features, and returns a new dataframe with extra computed columns such as min or avg distance to the pois features.
+
+Augment_with_avg_nearby is used specifically for adding a column to a pp_data derived dataframe with the price of the 10 nearest houses.
+
+Predict_on_data takes a fit and uses it to predict on new data.
+
+Generate_training_and_test_indices splits data into two sets for training and testing.
+
+Fit_on_data fits a gaussian linear model (regularized or not) on the given dataframe. The user supplies the column name for the y axis as well as the column names of features.
+
+Get_nearest_grocery_type_for_postcode produces a dataframe with a one-hot encoding of the nearest grocery store for all the given postcodes.
+
+Get_correlations_sorted computes the correlations of a dataframe as a flat list.
 
 ## License
 
@@ -22,22 +56,4 @@ One challenge for data science and data science processes is that they do not al
 
 The Fynesse paradigm considers three aspects to data analysis, Access, Assess, Address. 
 
-## Access
 
-Gaining access to the data, including overcoming availability challenges (data is distributed across architectures, called from an obscure API, written in log books) as well as legal rights (for example intellectual property rights) and individual privacy rights (such as those provided by the GDPR).
-
-It seems a great challenge to automate all the different aspects of the process of data access, but this challenge is underway already through the process of what is commonly called *digital transformation*. The process of digital transformation takes data away from physical log books and into digital devices. But that transformation process itself comes with challenges. 
-
-Legal complications around data are still a major barrier though. In the EU and the US database schema and indices are subject to copyright law. Companies making data available often require license fees. As many data sources are combined, the composite effect of the different license agreements often makes the legal challenges insurmountable. This was a common challenge in the pandemic, where academics who were capable of dealing with complex data predictions were excluded from data access due to challenges around licensing. A nice counter example was the work led by Nuria Oliver in Spain who after a call to arms in a national newspaper  was able to bring the ecosystem together around mobility data.
-
-However, even when organisation is fully digital, and license issues are overcome, there are issues around how the data is managed stored, accessed. The discoverability of the data and the recording of its provenance are too often neglected in the process of digtial transformation. Further, once an organisation has gone through digital transformation, they begin making predictions around the data. These predictions are data themselves, and their presence in the data ecosystem needs recording. Automating this portion requires structured thinking around our data ecosystems.
-
-## Assess
-
-Understanding what is in the data. Is it what it's purported to be, how are missing values encoded, what are the outliers, what does each variable represent and how is it encoded.
-
-Data that is accessible can be imported (via APIs or database calls or reading a CSV) into the machine and work can be done understanding the nature of the data. The important thing to say about the assess aspect is that it only includes things you can do *without* the question in mind. This runs counter to many ideas about how we do data analytics. The history of statistics was that we think of the question *before* we collect data. But that was because data was expensive, and it needed to be excplicitly collected. The same mantra is true today of *surveillance data*. But the new challenge is around *happenstance data*, data that is cheaply available but may be of poor quality. The nature of the data needs to be understood before its integrated into analysis. Unfortunately, because the work is conflated with other aspects, decisions are sometimes made during assessment (for example approaches to imputing missing values) which may be useful in one context, but are useless in others. So the aim in *assess* is to only do work that is repeatable, and make that work available to others who may also want to use the data.
-
-## Address
-
-The final aspect of the process is to *address* the question. We'll spend the least time on this aspect here, because it's the one that is most widely formally taught and the one that most researchers are familiar with. In statistics, this might involve some confirmatory data analysis. In machine learning it may involve designing a predictive model. In many domains it will involve figuring out how best to visualise the data to present it to those who need to make the decisions. That could involve a dashboard, a plot or even summarisation in an Excel spreadsheet.

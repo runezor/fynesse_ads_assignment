@@ -4,6 +4,9 @@ import decimal
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
+from sklearn.decomposition import PCA
+from scipy.special import factorial
+from scipy.stats import norm
 
 from . import access
 from . import assess
@@ -25,6 +28,94 @@ NEWCASTLE = position("Newcastle", 54.966667, -1.6)
 CAMBRIDGE = position("Cambridge", 52.205276, 0.119167)
 EDINBURGH = position("Edinburgh", 55.953251, -3.188267)
 ST_IVES = position("St. Ives", 52.33203, -0.07612)
+
+# Used for describing a bounding box + a searching radius
+class search_area:
+  def __init__(self, w, h, r):
+    self.w = w
+    self.h = h
+    self.max_search_r = r
+
+# Returns a pp_data subset in the given area, flexible to accommodate different data densitites
+# :param conn: DB connection
+# :param latitude: latitude of area
+# :param longitude: longitude of area
+# :param data: Date for filtering
+# :param property_type: Property type for filtering
+# :return pp_data, a search_area, as well as a list of tradeoffs
+def find_pp_data_flexible(conn, latitude, longitude, date, property_type):
+    # Constants, may need tuning
+    MAX_R = 0.5
+    w = 1
+    h = 1
+    MIN_PP_DATA = 100
+    TIME_DELTA = datetime.timedelta(365)
+    tradeoffs = []
+
+    if property_type is "O":
+        tradeoffs += ["Warning: Fits may not generalize well for type 'Other', due to great variation in the data."]
+
+    pp_in_area = assess.get_pp_data_for_location(conn, latitude, longitude, date - TIME_DELTA, date + TIME_DELTA,
+                                                 property_type, width=w, height=h)
+
+    # Reject queries if data is bad, since this is easy to detect. Handling of bad lat/lon is done below
+    if date + TIME_DELTA < datetime.date(1995, 1, 1) or date - TIME_DELTA > datetime.date(2021, 12, 1):
+        print("Sorry, request is outside time boundary, and we don't extrapolate *yet*")
+        raise
+
+    # Expand bounding box if we don't get enough data
+    n = 0
+    # TRADEOFF 1: Double the bounding box
+    while ((pp_in_area is None or len(pp_in_area.index) < MIN_PP_DATA) and n < 4):
+        n = n + 1
+        w = w * 2
+        h = h * 2
+        MAX_R = MAX_R * 2
+        tradeoffs += ["Had to double bounding box"]
+        pp_in_area = assess.get_pp_data_for_location(conn, latitude, longitude, date - TIME_DELTA, date + TIME_DELTA,
+                                                     property_type, width=w, height=h)
+
+    # TRADEOFF 2: Double time delta
+    if (pp_in_area is None or len(pp_in_area.index) < MIN_PP_DATA):
+        pp_in_area = assess.get_pp_data_for_location(conn, latitude, longitude, date - (TIME_DELTA + TIME_DELTA),
+                                                     date + (TIME_DELTA + TIME_DELTA), property_type, width=w, height=h)
+        tradeoffs += ["Had to double time delta"]
+
+    # TRADEOFF 3: Eliminate property_type filter
+    if (pp_in_area is None or len(pp_in_area.index) < MIN_PP_DATA):
+        pp_in_area = assess.get_pp_data_for_location(conn, latitude, longitude, date - (TIME_DELTA + TIME_DELTA),
+                                                     date + (TIME_DELTA + TIME_DELTA), None, width=w, height=h)
+        tradeoffs += ["Had to eliminate property_type filter"]
+
+    # TRADEOFF 4: Give up
+    if (pp_in_area is None):
+        print("Sorry, no postcodes available")
+        raise
+    if (len(pp_in_area.index) < MIN_PP_DATA):
+        print("Sorry, too few sales in area / time. I got " + str(len(pp_in_area.index)) + " sales")
+        raise
+
+    return pp_in_area, search_area(w, h, MAX_R), tradeoffs
+
+# Prints info about a prediction
+# :param prediction: A statsmodels prediction
+# :param area: a search_area
+# :param fit: A fit
+# :param tradeoffs: List of tradeoffs
+# :return Prints as a side effect
+def print_prediction(prediction, area, fit, tradeoffs):
+    print("Using bounding box of size: " + str(area.w) + "*" + str(area.h))
+    print("Mean of prediction dist. is: " + str(prediction["mean"]))
+    print("Upper ci of prediction dist. is: " + str(prediction["mean_ci_upper"]))
+    print("Lower ci of prediction dist. is: " + str(prediction["mean_ci_lower"]))
+    print("R^2 of fit is: " + str(fit.rsquared))
+    if len(tradeoffs) > 0:
+        print("Tradeoffs are...")
+        for tradeoff in tradeoffs:
+            print(tradeoff)
+
+        print(
+            "Tradeoffs make for a less precise model, since we're fitting on more general data that may not reflect the queried data well")
 
 
 # Returns a sanitised set of POIS based on a feature set
@@ -264,4 +355,68 @@ def get_correlations_sorted(df):
 
     sorted_correlations = sorted(correlations, key=lambda d: d['correlation'])
 
-    return df_c
+    return sorted_correlations
+
+# Plots the fit of on a dataset using PCA-acquired features of different dimensions
+# :param priors: A list of priors
+# :param data: A pandas dataframe
+# :return bool(p<0.05)
+def is_confidence_in_input_low(priors, data):
+
+  def poisson(k, lambd):
+    return(lambd**k/factorial(k))*np.exp(-lambd)
+
+  p = 1
+  for prior in priors:
+    val = data[prior["column"]]
+    if prior["type"] is "poisson":
+      p_sub = poisson(val, prior["params"])
+    elif prior["type"] is "normal":
+      # We need a precision of val to calculate this accurately
+      # Given that we haven't built in a prediction interval for our features, I've had to estimate it
+      # This leads to a bad calculation, but hopefully it gives an idea of what a more sophisticated model could do
+      # We set the uncertainty to 100m
+      eps = 0.1
+      p_sub = norm(prior["params"][0], prior["params"][1]).cdf(val+eps)-norm(prior["params"][0], prior["params"][1]).cdf(val-eps)
+    elif prior["type"] is "zero-val":
+      if val==0:
+        p_sub = 1
+      else:
+        p_sub = 0
+    p *= p_sub
+
+  return p<0.05
+
+# Plots the fit of on a dataset using PCA-acquired features of different dimensions
+# :param data: A dataframe containing at least columns 'latitude' and 'longitude'
+# :param fit_on: Column that we fit on
+# :param feature_cols: Columns that we fit with
+# :param normalized: Whether or not we normalize features
+# :return plot as a side effect
+def plot_PCA_feature_reduction(data, fit_on, feature_cols, normalized = False):
+  X = data[feature_cols]
+  Y = data[fit_on]
+
+  if normalized:
+    X=(X-X.mean())/X.std()
+
+  fit_vals = []
+  for feature_count in range(1,len(feature_cols)):
+    pca = PCA(n_components=feature_count)
+    pca.fit(X)
+    feature_names = [str(i) for i in range(0,feature_count)]
+    new_features = pd.DataFrame(pca.transform(X), columns=feature_names)
+    new_features[fit_on] = Y
+
+    #Do fitting on the training data
+    fit = address.fit_on_data(new_features, fit_on, feature_names)
+
+    #Do predictions for testing data
+    predictions = address.predict_on_data(fit, new_features, feature_names)
+
+    fit_vals.append(fit.rsquared)
+  plt.plot(range(1,len(feature_cols)), fit_vals)
+  plt.xticks(range(1,len(feature_cols)))
+  plt.xlabel("Features")
+  plt.ylabel("R squared")
+  plt.title("Change in R squared for different feature counts")

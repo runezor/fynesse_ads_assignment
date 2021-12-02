@@ -9,6 +9,7 @@ import osmnx as ox
 import mlai.plot as plot
 import seaborn as sns
 import pandas as pd
+from scipy.stats import norm
 
 """These are the types of import we might expect in this file
 import pandas
@@ -93,7 +94,7 @@ def bounding_box(lat, lon, width=2, height=2):
 # :param width: The width of the box in km
 # :param property_type: Specifies the property_type
 # :param height: The height of the box in km
-# :return: A dataframe with the columns matching the query
+# :return: A dataframe with the columns matching the query, returns none if no postcodes are found in box
 def get_pp_data_for_location(conn, lat, lon, date_before, date_after, property_type, width=2, height=2):
     postcode_data_filtered = get_postcodes_in_bounding_box(lat, lon, width, height)
     postcodes = postcode_data_filtered["postcode"].values.tolist()
@@ -403,3 +404,23 @@ def get_pois_filtered(features, lat, lon, width, height):
             pois_features += [feature.compute_feature(pois)]
 
     return pois_features
+
+
+
+# Returns a list of priors for a set of feature columns
+# Currently very closely encapsulated with feature column names, type shouldn't be inferred from the name
+# :param data: A pandas dataframe
+# :param lat: A set of feature columns, if the name contains 'within_r' we assume a poisson dist. otherwise normal
+# :return A list of dicts describing priors
+def calculate_priors(data, feature_columns):
+  priors = []
+  for feature in feature_columns:
+    if "within_r" in feature:
+      val = int(data[feature].mean()+0.5)
+      if val==0:
+        priors += [{"type": "zero-val", "column": feature}]
+      else:
+        priors += [{"type": "poisson", "column": feature, "params": val}]
+    else:
+      priors += [{"type": "normal", "column": feature, "params": norm.fit(data[feature].tolist())}]
+  return priors
