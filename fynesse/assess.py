@@ -424,3 +424,24 @@ def calculate_priors(data, feature_columns):
     else:
       priors += [{"type": "normal", "column": feature, "params": norm.fit(data[feature].tolist())}]
   return priors
+
+# Fetches a random subset of pp_data for aggregate analsysis
+# :param conn: A DB connection
+# :param n: Size of the subset
+# :return A subset of pp_data
+def get_prices_subset(conn, n=1000000):
+  query = """select
+  price,
+  new_build_flag,
+  property_type,
+  year(date_of_transfer)
+  FROM
+    pp_data
+  ORDER BY RAND ( )
+  LIMIT {n}
+  """.format(n = n)
+
+  cursor = conn.cursor()
+  cursor.execute(query)
+  column_names = list(map(lambda x: x[0], cursor.description))
+  return pd.DataFrame(columns=column_names, data=cursor.fetchall())

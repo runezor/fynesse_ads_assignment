@@ -410,10 +410,10 @@ def plot_PCA_feature_reduction(data, fit_on, feature_cols, normalized = False):
     new_features[fit_on] = Y
 
     #Do fitting on the training data
-    fit = address.fit_on_data(new_features, fit_on, feature_names)
+    fit = fit_on_data(new_features, fit_on, feature_names)
 
     #Do predictions for testing data
-    predictions = address.predict_on_data(fit, new_features, feature_names)
+    predictions = predict_on_data(fit, new_features, feature_names)
 
     fit_vals.append(fit.rsquared)
   plt.plot(range(1,len(feature_cols)), fit_vals)
