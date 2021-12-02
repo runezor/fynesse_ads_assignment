@@ -8,6 +8,7 @@ from sklearn.decomposition import PCA
 from scipy.special import factorial
 from scipy.stats import norm
 import datetime
+import matplotlib.pyplot as plt
 
 from . import access
 from . import assess
