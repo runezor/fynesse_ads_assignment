@@ -7,6 +7,7 @@ import statsmodels.api as sm
 from sklearn.decomposition import PCA
 from scipy.special import factorial
 from scipy.stats import norm
+import datetime
 
 from . import access
 from . import assess
@@ -384,6 +385,8 @@ def is_confidence_in_input_low(priors, data):
       else:
         p_sub = 0
     p *= p_sub
+
+  print(p)
 
   return p<0.05
 
